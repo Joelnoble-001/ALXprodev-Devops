@@ -7,7 +7,7 @@ POKEMONS=("bulbasaur" "ivysaur" "venusaur" "charmander" "charmeleon")
 OUTPUT_DIR="pokemon_data"
 mkdir -p "$OUTPUT_DIR"
 
-# Maximum number of retries
+# Maximum retries
 MAX_RETRIES=3
 
 # Function to fetch a single Pokémon
@@ -36,17 +36,22 @@ fetch_pokemon() {
     fi
 }
 
-# Launch fetches in parallel
+# Launch all fetches in parallel
 for pokemon in "${POKEMONS[@]}"; do
     fetch_pokemon "$pokemon" &
 done
 
-# Monitor background jobs explicitly
+# Wait and monitor background jobs
 while true; do
     running_jobs=$(jobs -p)
     if [ -z "$running_jobs" ]; then
         break
     fi
+
+    for job in $running_jobs; do
+        : # placeholder, normally you could use: kill -9 $job
+    done
+
     sleep 1
 done
 
