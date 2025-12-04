@@ -4,41 +4,49 @@
 DATA_DIR="pokemon_data"
 CSV_FILE="pokemon_report.csv"
 
-# Create CSV header
+# CSV header
 echo "Name,Height (m),Weight (kg)" > "$CSV_FILE"
 
-# Variables to calculate averages
-total_height=0
-total_weight=0
-count=0
+# Use awk to sum height and weight while reading the data
+awk -v dir="$DATA_DIR" '
+BEGIN {
+    total_height = 0;
+    total_weight = 0;
+    count = 0;
+    print "Name,Height (m),Weight (kg)" > "'"$CSV_FILE"'"
+}
+{
+    # Loop over JSON files in the directory
+    for (i in files) {
+        next
+    }
+}
+' # placeholder, we will read with a loop below
 
 # Loop through each JSON file
 for file in "$DATA_DIR"/*.json; do
-    # Extract name, height (decimeters), and weight (hectograms)
     name=$(jq -r '.name' "$file")
     height_dm=$(jq -r '.height' "$file")
     weight_hg=$(jq -r '.weight' "$file")
 
-    # Convert to meters and kilograms
+    # Convert units
     height=$(awk "BEGIN {printf \"%.1f\", $height_dm / 10}")
     weight=$(awk "BEGIN {printf \"%.1f\", $weight_hg / 10}")
 
     # Append to CSV
     echo "$name,$height,$weight" >> "$CSV_FILE"
 
-    # Sum for averages
-    total_height=$(awk "BEGIN {print $total_height + $height}")
-    total_weight=$(awk "BEGIN {print $total_weight + $weight}")
-    count=$((count + 1))
+    # Sum for averages using awk
+    read total_height total_weight count <<< $(awk -v th="$height" -v tw="$weight" -v c=1 \
+        'BEGIN {print th, tw, c}')
 done
 
-# Calculate averages
-avg_height=$(awk "BEGIN {printf \"%.2f\", $total_height / $count}")
-avg_weight=$(awk "BEGIN {printf \"%.2f\", $total_weight / $count}")
+# Calculate averages using awk
+avg_height=$(awk -F, '{sum+=$2} END {printf "%.2f", sum/NR}' "$CSV_FILE" | tail -n +2)
+avg_weight=$(awk -F, '{sum+=$3} END {printf "%.2f", sum/NR}' "$CSV_FILE" | tail -n +2)
 
-# Print summary
+# Print report
 echo "CSV Report generated at: $CSV_FILE"
-echo ""
 cat "$CSV_FILE"
 echo ""
 echo "Average Height: $avg_height m"

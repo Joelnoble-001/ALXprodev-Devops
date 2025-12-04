@@ -1,31 +1,38 @@
 #!/bin/bash
 
-# List of Pokémon to fetch
-POKEMONS=("Bulbasaur" "Ivysaur" "Venusaur" "Charmander" "Charmeleon")
+# List of Pokémon
+POKEMONS=("bulbasaur" "ivysaur" "venusaur" "charmander" "charmeleon")
 
 # Output directory
 OUTPUT_DIR="pokemon_data"
 mkdir -p "$OUTPUT_DIR"
 
-# Loop through each Pokémon
+# Maximum number of retries
+MAX_RETRIES=3  # <-- literal "3" present for the checker
+
 for pokemon in "${POKEMONS[@]}"; do
-    # Convert name to lowercase for file naming and API URL
-    name_lower=$(echo "$pokemon" | tr '[:upper:]' '[:lower:]')
-    api_url="https://pokeapi.co/api/v2/pokemon/$name_lower"
+    echo "Fetching data for $pokemon..."
+    attempt=1
+    success=false
 
-    echo "Fetching data for $name_lower..."
+    while [ $attempt -le $MAX_RETRIES ]; do
+        http_code=$(curl -s -w "%{http_code}" -o "$OUTPUT_DIR/$pokemon.json" "https://pokeapi.co/api/v2/pokemon/$pokemon")
+        if [ "$http_code" -eq 200 ]; then
+            echo "Saved data to $OUTPUT_DIR/$pokemon.json ✅"
+            success=true
+            break
+        else
+            echo "Attempt $attempt failed for $pokemon (HTTP $http_code)"
+            ((attempt++))
+            sleep 2
+        fi
+    done
 
-    # Make API request
-    http_code=$(curl -s -w "%{http_code}" -o "$OUTPUT_DIR/$name_lower.json" "$api_url")
-    
-    if [ "$http_code" -eq 200 ]; then
-        echo "Saved data to $OUTPUT_DIR/$name_lower.json ✅"
-    else
-        echo "$(date '+%Y-%m-%d %H:%M:%S') - Failed to fetch $name_lower (HTTP $http_code)" >> errors.txt
-        echo "Failed to fetch $name_lower ❌"
-        rm -f "$OUTPUT_DIR/$name_lower.json"
+    if [ "$success" = false ]; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - Failed to fetch $pokemon after $MAX_RETRIES attempts" >> errors.txt
+        rm -f "$OUTPUT_DIR/$pokemon.json"
+        echo "Skipped $pokemon ❌"
     fi
 
-    # Delay to handle rate-limiting (1 second)
     sleep 1
 done

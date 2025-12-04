@@ -1,46 +1,53 @@
 #!/bin/bash
 
-# List of Pokémon to fetch
-POKEMONS=("Bulbasaur" "Ivysaur" "Venusaur" "Charmander" "Charmeleon")
+# List of Pokémon (lowercase)
+POKEMONS=("bulbasaur" "ivysaur" "venusaur" "charmander" "charmeleon")
 
 # Output directory
 OUTPUT_DIR="pokemon_data"
 mkdir -p "$OUTPUT_DIR"
 
-# Max number of retries
+# Maximum number of retries
 MAX_RETRIES=3
 
-# Loop through each Pokémon
-for pokemon in "${POKEMONS[@]}"; do
-    name_lower=$(echo "$pokemon" | tr '[:upper:]' '[:lower:]')
-    api_url="https://pokeapi.co/api/v2/pokemon/$name_lower"
-    
-    echo "Fetching data for $name_lower..."
-    
-    attempt=1
-    success=false
+# Function to fetch a single Pokémon
+fetch_pokemon() {
+    local pokemon=$1
+    local attempt=1
+    local success=false
 
-    # Retry loop
     while [ $attempt -le $MAX_RETRIES ]; do
-        http_code=$(curl -s -w "%{http_code}" -o "$OUTPUT_DIR/$name_lower.json" "$api_url")
-        
+        http_code=$(curl -s -w "%{http_code}" -o "$OUTPUT_DIR/$pokemon.json" "https://pokeapi.co/api/v2/pokemon/$pokemon")
         if [ "$http_code" -eq 200 ]; then
-            echo "Saved data to $OUTPUT_DIR/$name_lower.json ✅"
+            echo "Saved data to $OUTPUT_DIR/$pokemon.json ✅"
             success=true
             break
         else
-            echo "Attempt $attempt failed for $name_lower (HTTP $http_code)"
+            echo "Attempt $attempt failed for $pokemon (HTTP $http_code)"
             ((attempt++))
-            sleep 2  # Wait before retrying
+            sleep 2
         fi
     done
 
     if [ "$success" = false ]; then
-        echo "$(date '+%Y-%m-%d %H:%M:%S') - Failed to fetch $name_lower after $MAX_RETRIES attempts" >> errors.txt
-        echo "Skipped $name_lower ❌"
-        rm -f "$OUTPUT_DIR/$name_lower.json"
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - Failed to fetch $pokemon after $MAX_RETRIES attempts" >> errors.txt
+        rm -f "$OUTPUT_DIR/$pokemon.json"
+        echo "Skipped $pokemon ❌"
     fi
+}
 
-    # Delay between Pokémon to prevent rate-limiting
+# Launch fetches in parallel
+for pokemon in "${POKEMONS[@]}"; do
+    fetch_pokemon "$pokemon" &
+done
+
+# Monitor background jobs explicitly
+while true; do
+    running_jobs=$(jobs -p)
+    if [ -z "$running_jobs" ]; then
+        break
+    fi
     sleep 1
 done
+
+echo "All Pokémon data fetching completed."

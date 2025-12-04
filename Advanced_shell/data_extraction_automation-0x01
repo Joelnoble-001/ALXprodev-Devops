@@ -7,16 +7,14 @@ DATA_FILE="data.json"
 name=$(jq -r '.name' "$DATA_FILE")
 height=$(jq -r '.height' "$DATA_FILE")
 weight=$(jq -r '.weight' "$DATA_FILE")
-# Pokémon can have multiple types, we join them with a comma
-types=$(jq -r '[.types[].type.name] | join(", ")' "$DATA_FILE")
+type=$(jq -r '.types[0].type.name' "$DATA_FILE")  # First type
 
-# Convert height and weight to meters and kilograms if needed
-# Pokémon API returns height in decimeters, weight in hectograms
-height_m=$(awk "BEGIN {printf \"%.1f\", $height / 10}")
-weight_kg=$(awk "BEGIN {printf \"%d\", $weight / 10}")
+# Convert height (decimeters → meters) and weight (hectograms → kg)
+formatted_height=$(awk "BEGIN {printf \"%.1f\", $height / 10}")
+formatted_weight=$(awk "BEGIN {printf \"%d\", $weight / 10}")
 
-# Capitalize the first letter of type(s)
-types_cap=$(echo "$types" | sed -E 's/(^|, )(.)/\U\2/g')
+# Capitalize the first letter of type
+type=$(echo "$type" | sed -E 's/(.)/\U\1/')
 
-# Print in human-readable format
-echo "$name is of type $types_cap, weighs ${weight_kg}kg, and is ${height_m}m tall."
+# Print in the expected format
+echo "$name is of type $type, weighs ${formatted_weight}kg, and is ${formatted_height}m tall."
